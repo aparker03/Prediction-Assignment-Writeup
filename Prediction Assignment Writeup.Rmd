@@ -1,0 +1,105 @@
+---
+title: "Prediction Assignment Writeup"
+author: "Alexis Parker"
+date: "2023-01-05"
+output: html_document
+---
+
+### Introduction
+
+This project is using data from 6 participants to predict the way they did an exercise with the use of machine learning.
+
+### Load libraries
+
+```{r}
+library(ggplot2)
+library(caret)
+library(randomForest)
+library(rpart)
+```
+
+### Load data
+
+```{r}
+train <- read.csv("pml-training.csv")
+```
+
+### Look at the values
+
+```{r, results='hide'}
+head(train)
+tail(train)
+```
+
+There are two null values: NA and #DIV/0!. There a few columns that should be removed when the data is cleaned.
+
+### Reload and clean the data
+
+```{r}
+set.seed(123)
+
+# Loading
+train <- read.csv("pml-training.csv", na.strings = c("NA","#DIV/0!",""))
+test <- read.csv("pml-testing.csv", na.strings = c("NA","#DIV/0!",""))
+```
+
+#### Partition for training data separated into two sections: train and test
+
+```{r}
+# Create a partition
+in_Train <- createDataPartition(train$classe, p = 0.70, list = FALSE)
+train_set <- train[in_Train, ]
+test_set <- train[-in_Train, ]
+```
+
+```{r}
+dim(train_set)
+dim(test_set)
+```
+
+```{r}
+train_set <- train_set[, -c(1:7)]
+test_set <- test_set[, -c(1:7)]
+
+train_set <- train_set[, colSums(is.na(train_set)) == 0]
+test_set <- test_set[, colSums(is.na(test_set)) == 0]
+```
+
+```{r}
+dim(train_set)
+dim(test_set)
+```
+
+## Prediction Models
+
+Random Forest
+
+```{r}
+RFmod <- randomForest(as.factor(classe) ~., data = train_set, method = 'class')
+RFpreds <- predict(RFmod, newdata = test_set, type = 'class')
+# Plot confusion matrix
+confusionMatrix(RFpreds, as.factor(test_set$classe))
+```
+
+Decision Tree
+
+```{r}
+DTmod <- rpart(as.factor(classe) ~., data = train_set, method = 'class')
+DTpreds <- predict(DTmod, newdata = test_set, type = 'class')
+confusionMatrix(DTpreds, as.factor(test_set$classe))
+```
+
+Out of the two models, Random Forest had an higher accuracy, 99.49% than the Decision Tree model, 75.73%. For the final prediction, Random Forest will be used.
+
+### Final prediction
+
+```{r}
+# Load and clean the test data for the last prediction
+test <- read.csv("pml-testing.csv", na.strings = c("NA","#DIV/0!",""))
+test <- test[, -c(1:7)]
+test <- test[, colSums(is.na(test)) == 0]
+
+# Prediction
+FinalPreds <- predict(RFmod, test)
+FinalPreds
+```
